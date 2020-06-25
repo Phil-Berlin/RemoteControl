@@ -11,4 +11,4 @@ Attention
 ----------
 Only use this tool on your own computer/hardware/account and on your own risk.
 This tool is for training and educational purposes only. Don't harm people with it!
-I'm not responsible for any action taken by any individual that abuses this tool.
+I'm not responsible for any action taken by any individual that uses this tool.
