@@ -3,6 +3,8 @@ using System.Diagnostics;
 using System.Net.Sockets;
 using System.Text;
 
+using Util;
+
 using Command = CommandAndControl.Commands.Command;
 using ShutdownType = CommandAndControl.Commands.ShutdownType;
 
@@ -23,7 +25,7 @@ namespace CommandAndControl
             }
             catch (Exception e)
             {
-                // Log.WriteLine(e.Message);
+                Logging.Instance.Log(e.Message);
                 return;
             }
 
@@ -40,11 +42,10 @@ namespace CommandAndControl
                     Array.Copy(data, 1, payload, 0, payload.Length);
                     
                     result = Execute(command, payload);
-
                 }
                 catch (Exception e)
                 {
-                    // Log.WriteLine(e.Message);
+                    Logging.Instance.Log(e.Message);
                     result = false;
                 }
 
@@ -52,9 +53,8 @@ namespace CommandAndControl
             }
             else
             {
-                //Log.WriteLine("Bad data format");
+                Logging.Instance.Log("Bad data format");
             }
-
         }
 
         public bool Execute(Command command, byte[] payload = null)
@@ -108,6 +108,8 @@ namespace CommandAndControl
 
         public bool ShowMessage(string message)
         {
+            Logging.Instance.Log("ShowMessage");
+
             if (message == null || message == "")
             {
                 return false;
@@ -119,6 +121,8 @@ namespace CommandAndControl
 
         public bool Shutdown(ShutdownType shutdownType = ShutdownType.Shutdown, int delay = 0, bool force = true, string message = "")
         {
+            Logging.Instance.Log("Shutdown");
+
             string param;
 
             switch (shutdownType)
@@ -164,11 +168,13 @@ namespace CommandAndControl
 
         public bool GetTasks()
         {
+            Logging.Instance.Log("GetTasks");
             return true;
         }
 
         public bool Ping()
         {
+            Logging.Instance.Log("Ping");
             return true;
         }
     }

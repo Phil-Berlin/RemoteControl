@@ -1,5 +1,4 @@
-﻿using CommandAndControl;
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.Data;
@@ -13,12 +12,14 @@ using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 
+using CommandAndControl;
+using Util;
+
 namespace RemoteControl
 {
     public partial class Server : ServiceBase
     {
         Thread serverThread;
-        StreamWriter writer;
         IController controller;
 
         bool shouldFinish = false;
@@ -29,12 +30,11 @@ namespace RemoteControl
         {
             InitializeComponent();
             controller = new WindowsController();
-            writer = new StreamWriter(Network.Path + Network.OutputFile, true, Encoding.UTF8, 1024);
         }
 
         protected override void OnStart(string[] args)
         {
-            writer.WriteLine("Starting Server");
+            Logging.Instance.Log("Service started");
 
             serverThread = new Thread(RunServer);
             serverThread.Name = "ServerThread";
@@ -43,7 +43,7 @@ namespace RemoteControl
 
         public void RunServer()
         {
-            writer.WriteLine("Server started");
+            Logging.Instance.Log("Server started");
 
             IPEndPoint localEndPoint = new IPEndPoint(Network.IP, Network.Port);
             Socket listener = new Socket(Network.IP.AddressFamily, SocketType.Stream, ProtocolType.Tcp);
@@ -55,7 +55,7 @@ namespace RemoteControl
 
                 while (!shouldFinish)
                 {
-                    writer.WriteLine("Waiting for connection");
+                    Logging.Instance.Log("Waiting for connection");
 
                     connectionEvent.Reset();
                     listener.BeginAccept(new AsyncCallback(AcceptCallback), listener);
@@ -66,13 +66,12 @@ namespace RemoteControl
             }
             catch (Exception e)
             {
-                writer.WriteLine(e.Message);
+                Logging.Instance.Log(e.Message);
             }
         }
 
         protected void AcceptCallback(IAsyncResult ar)
         {
-            writer.WriteLine("Stopping server");
             connectionEvent.Set();
 
             byte[] data = new byte[1024];
@@ -83,6 +82,7 @@ namespace RemoteControl
             {
                 Socket handler = listener.EndAccept(ar);
 
+                Logging.Instance.Log("Connection established");
 
                 int bytesRcvd = handler.Receive(data);
                 byte[] payload = new byte[bytesRcvd];
@@ -94,6 +94,7 @@ namespace RemoteControl
             catch (ObjectDisposedException ode)
             {
                 serverFinishedEvent.Set();
+                Logging.Instance.Log("Server stopped");
             }
         }
 
@@ -102,10 +103,10 @@ namespace RemoteControl
             shouldFinish = true;
             connectionEvent.Set();
 
-            writer.WriteLine("Server stopped");
             serverFinishedEvent.WaitOne();
 
-            writer.Close();
+            Logging.Instance.Log("Service stopped");
+            Logging.Instance.Close();
         }
     }
 }
