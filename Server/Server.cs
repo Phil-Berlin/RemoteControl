@@ -21,6 +21,10 @@ namespace RemoteControl
         StreamWriter writer;
         IController controller;
 
+        bool shouldFinish = false;
+        ManualResetEvent connectionEvent = new ManualResetEvent(false);
+        ManualResetEvent serverFinishedEvent = new ManualResetEvent(false);
+
         public Server()
         {
             InitializeComponent();
@@ -41,8 +45,6 @@ namespace RemoteControl
         {
             writer.WriteLine("Server started");
 
-            byte[] data = new byte[1024];
-
             IPEndPoint localEndPoint = new IPEndPoint(Network.IP, Network.Port);
             Socket listener = new Socket(Network.IP.AddressFamily, SocketType.Stream, ProtocolType.Tcp);
 
@@ -51,20 +53,16 @@ namespace RemoteControl
                 listener.Bind(localEndPoint);
                 listener.Listen(1);
 
-                while (true)
+                while (!shouldFinish)
                 {
                     writer.WriteLine("Waiting for connection");
-                    Socket handler = listener.Accept();
 
-                    int bytesRcvd = handler.Receive(data);
-
-                    byte[] payload = new byte[bytesRcvd];
-                    Array.Copy(data, payload, bytesRcvd);
-
-                    ThreadPool.QueueUserWorkItem(controller.ExecuteAndRespond, new object[] { handler, payload });
-
-                    writer.Flush();
+                    connectionEvent.Reset();
+                    listener.BeginAccept(new AsyncCallback(AcceptCallback), listener);
+                    connectionEvent.WaitOne();
                 }
+
+                listener.Close();
             }
             catch (Exception e)
             {
@@ -72,16 +70,40 @@ namespace RemoteControl
             }
         }
 
-        protected override void OnStop()
+        protected void AcceptCallback(IAsyncResult ar)
         {
             writer.WriteLine("Stopping server");
-            
-            if (serverThread.IsAlive)
+            connectionEvent.Set();
+
+            byte[] data = new byte[1024];
+
+            Socket listener = (Socket)ar.AsyncState;
+
+            try
             {
-                serverThread.Suspend();
+                Socket handler = listener.EndAccept(ar);
+
+
+                int bytesRcvd = handler.Receive(data);
+                byte[] payload = new byte[bytesRcvd];
+
+                Array.Copy(data, payload, bytesRcvd);
+
+                ThreadPool.QueueUserWorkItem(controller.ExecuteAndRespond, new object[] { handler, payload });
             }
-            
+            catch (ObjectDisposedException ode)
+            {
+                serverFinishedEvent.Set();
+            }
+        }
+
+        protected override void OnStop()
+        {
+            shouldFinish = true;
+            connectionEvent.Set();
+
             writer.WriteLine("Server stopped");
+            serverFinishedEvent.WaitOne();
 
             writer.Close();
         }
